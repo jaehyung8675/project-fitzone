@@ -18,7 +18,22 @@ if (navigator.geolocation)
       // Distructring latitude and longitude to get data
       const { latitude } = position.coords;
       const { longitude } = position.coords;
-      console.log(`https://www.google.com/maps/@${latitude},${longitude}`);
+      // console.log(`https://www.google.com/maps/@${latitude},${longitude}`);
+
+      const coords = [latitude, longitude];
+
+      // Leaflet source to create map
+      const map = L.map("map").setView(coords, 12);
+      // Changed map theme from https:/tile.openstreetmap.org/{z}/{x}/{y}.png
+      L.tileLayer("https:/{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png", {
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      }).addTo(map);
+
+      L.marker(coords)
+        .addTo(map)
+        .bindPopup("A pretty CSS3 popup.<br> Easily customizable.")
+        .openPopup();
     },
     // Alert when current location is blocked
     function () {
