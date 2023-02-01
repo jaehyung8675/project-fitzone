@@ -11,6 +11,9 @@ const inputDuration = document.querySelector(".form__input--duration");
 const inputCadence = document.querySelector(".form__input--cadence");
 const inputElevation = document.querySelector(".form__input--elevation");
 
+// Global variable
+let map, mapEvent;
+
 // Getting Geolocation
 if (navigator.geolocation)
   navigator.geolocation.getCurrentPosition(
@@ -19,8 +22,8 @@ if (navigator.geolocation)
       const { latitude, longitude } = position.coords;
       const coords = [latitude, longitude];
 
-      // Leaflet source to create map
-      const map = L.map("map").setView(coords, 12);
+      // Leaflet source to display current location on map
+      map = L.map("map").setView(coords, 12);
 
       // Changed map theme from https:/tile.openstreetmap.org/{z}/{x}/{y}.png
       L.tileLayer("https:/{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png", {
@@ -28,24 +31,12 @@ if (navigator.geolocation)
           '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       }).addTo(map);
 
-      // Click on map to display the spot of the event
-      map.on("click", function (mapEvent) {
-        // Distructure map latitude and longitude
-        const { lat, lng } = mapEvent.latlng;
-
-        L.marker([lat, lng])
-          .addTo(map)
-          .bindPopup(
-            L.popup({
-              maxWidth: 250,
-              minWidth: 100,
-              autoClose: false,
-              closeOnClick: false,
-              className: "running-popup",
-            })
-          )
-          .setPopupContent("Fit Zone")
-          .openPopup();
+      // Click on map to display input fields
+      map.on("click", function (mapE) {
+        mapEvent = mapE;
+        // Click on map and display the input field
+        form.classList.remove("hidden");
+        inputDistance.focus();
       });
     },
     // Alert when current location is blocked
@@ -53,3 +44,33 @@ if (navigator.geolocation)
       alert("Could not get your position");
     }
   );
+
+// After data submit, display marker
+form.addEventListener("submit", function (e) {
+  e.preventDefault();
+
+  // Clear input fields
+  inputDistance.value =
+    inputDuration.value =
+    inputCadence.value =
+    inputElevation.value =
+      "";
+
+  // Distructure map latitude and longitude
+  const { lat, lng } = mapEvent.latlng;
+
+  L.marker([lat, lng])
+    .addTo(map)
+    .bindPopup(
+      // Popup box options
+      L.popup({
+        maxWidth: 250,
+        minWidth: 100,
+        autoClose: false,
+        closeOnClick: false,
+        className: "running-popup",
+      })
+    )
+    .setPopupContent("Fit Zone")
+    .openPopup();
+});
