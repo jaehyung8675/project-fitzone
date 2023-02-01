@@ -15,25 +15,38 @@ const inputElevation = document.querySelector(".form__input--elevation");
 if (navigator.geolocation)
   navigator.geolocation.getCurrentPosition(
     function (position) {
-      // Distructring latitude and longitude to get data
-      const { latitude } = position.coords;
-      const { longitude } = position.coords;
-      // console.log(`https://www.google.com/maps/@${latitude},${longitude}`);
-
+      // Distructring latitude and longitude to get data and apply it
+      const { latitude, longitude } = position.coords;
       const coords = [latitude, longitude];
 
       // Leaflet source to create map
       const map = L.map("map").setView(coords, 12);
+
       // Changed map theme from https:/tile.openstreetmap.org/{z}/{x}/{y}.png
       L.tileLayer("https:/{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png", {
         attribution:
           '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       }).addTo(map);
 
-      L.marker(coords)
-        .addTo(map)
-        .bindPopup("A pretty CSS3 popup.<br> Easily customizable.")
-        .openPopup();
+      // Click on map to display the spot of the event
+      map.on("click", function (mapEvent) {
+        // Distructure map latitude and longitude
+        const { lat, lng } = mapEvent.latlng;
+
+        L.marker([lat, lng])
+          .addTo(map)
+          .bindPopup(
+            L.popup({
+              maxWidth: 250,
+              minWidth: 100,
+              autoClose: false,
+              closeOnClick: false,
+              className: "running-popup",
+            })
+          )
+          .setPopupContent("Fit Zone")
+          .openPopup();
+      });
     },
     // Alert when current location is blocked
     function () {
