@@ -1,16 +1,9 @@
 "use strict";
 
-const form = document.querySelector(".form");
-const containerWorkouts = document.querySelector(".workouts");
-const inputType = document.querySelector(".form__input--type");
-const inputDistance = document.querySelector(".form__input--distance");
-const inputDuration = document.querySelector(".form__input--duration");
-const inputCadence = document.querySelector(".form__input--cadence");
-const inputElevation = document.querySelector(".form__input--elevation");
-
 class Workout {
   date = new Date();
-  id = (new Date() + "").slice(-10);
+  id = (new Date().getTime() + "").slice(-10);
+  clicks = 0;
 
   constructor(coords, distance, duration) {
     this.coords = coords; // [latitude, longitude]
@@ -26,6 +19,11 @@ class Workout {
     this.description = `${this.type[0].toUpperCase()}${this.type.slice(1)} on ${
       months[this.date.getMonth()]
     } ${this.date.getDate()}`;
+  }
+
+  // Use public interface
+  click() {
+    this.clicks++;
   }
 }
 
@@ -64,19 +62,36 @@ class Cycling extends Workout {
 
 ///////////////////////////////////////////////
 /// APPLICATION ARCHITECTURE
+
+const form = document.querySelector(".form");
+const containerWorkouts = document.querySelector(".workouts");
+const inputType = document.querySelector(".form__input--type");
+const inputDistance = document.querySelector(".form__input--distance");
+const inputDuration = document.querySelector(".form__input--duration");
+const inputCadence = document.querySelector(".form__input--cadence");
+const inputElevation = document.querySelector(".form__input--elevation");
+
 class App {
   #map;
+  #mapZoomLevel = 13;
   #mapEvent;
-  #workout = [];
+  #workouts = [];
 
   constructor() {
+    // Get user's position
     this._getPosition();
+
+    // Get data from local storage
+    this._getLocalStorage();
 
     // After data submit, eventhandlings
     form.addEventListener("submit", this._newWorkout.bind(this));
 
     // When type is chaged, toggle from cadence to elevation input
     inputType.addEventListener("change", this._toggleElevationField);
+
+    // When list item is clicked, map to marker
+    containerWorkouts.addEventListener("click", this._moveToMarker.bind(this));
   }
 
   _getPosition() {
@@ -97,7 +112,7 @@ class App {
     const coords = [latitude, longitude];
 
     // Leaflet source to display current location on map
-    this.#map = L.map("map").setView(coords, 12);
+    this.#map = L.map("map").setView(coords, this.#mapZoomLevel);
 
     // Changed map theme from https:/tile.openstreetmap.org/{z}/{x}/{y}.png
     L.tileLayer("https:/{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png", {
@@ -107,6 +122,11 @@ class App {
 
     // Click on map to show form
     this.#map.on("click", this._showForm.bind(this));
+
+    // Load marker from local storage data
+    this.#workouts.forEach((workout) => {
+      this._renderMarker(workout);
+    });
   }
 
   _showForm(mapE) {
@@ -114,6 +134,15 @@ class App {
     // Click on map and display the input field
     form.classList.remove("hidden");
     inputDistance.focus();
+  }
+
+  _hideForm() {
+    // prettier-ignore
+    inputDistance.value = inputDuration.value = inputCadence.value = inputElevation.value ="";
+
+    form.style.display = "none";
+    form.classList.add("hidden");
+    setTimeout(() => (form.style.display = "grid"), 1000);
   }
 
   _toggleElevationField() {
@@ -168,7 +197,7 @@ class App {
       workout = new Cycling([lat, lng], distance, duration, elevation);
     }
 
-    this.#workout.push(workout); // Push workout to array
+    this.#workouts.push(workout); // Push workout to array
 
     // Render workout on the map as marker
     this._renderMarker(workout);
@@ -177,8 +206,10 @@ class App {
     this._renderList(workout);
 
     // Hide from and Clear input fields
-    // prettier-ignore
-    inputDistance.value = inputDuration.value = inputCadence.value = inputElevation.value ="";
+    this._hideForm();
+
+    // Set data to local storage
+    this._setLocalStorage();
   }
 
   _renderMarker(workout) {
@@ -194,7 +225,9 @@ class App {
           className: `${workout.type}-popup`,
         })
       )
-      .setPopupContent("Work out")
+      .setPopupContent(
+        `${workout.type === "running" ? "🏃‍♂️" : "🚴‍♀️"} ${workout.description}`
+      )
       .openPopup();
   }
 
@@ -248,6 +281,65 @@ class App {
 
     form.insertAdjacentHTML("afterend", listHTML);
   }
+
+  _moveToMarker(e) {
+    const workoutElement = e.target.closest(".workout");
+
+    if (!workoutElement) return;
+
+    // Find matched workout from the workouts data
+    const clickedWorkout = this.#workouts.find(
+      (workout) => workout.id === workoutElement.dataset.id
+    );
+
+    // Leaflet source for moving to marker on map
+    this.#map.setView(clickedWorkout.coords, this.#mapZoomLevel, {
+      animate: true,
+      pan: {
+        duration: 1,
+      },
+    });
+
+    // Increase click value
+    // clickedWorkout.click();
+  }
+
+  _setLocalStorage() {
+    // Set data to local storage
+    localStorage.setItem("workouts", JSON.stringify(this.#workouts));
+  }
+
+  _getLocalStorage() {
+    // Get data from local storage
+    const data = JSON.parse(localStorage.getItem("workouts"));
+
+    if (!data) return; // If there is no data, return
+
+    this.#workouts = data; // set local data to workouts array
+    this.#workouts.forEach((workout) => {
+      this._renderList(workout); // render each local data to workout list
+    });
+  }
+
+  // For reset data, use at console log -> app.reset()
+  reset() {
+    localStorage.removeItem("workouts");
+    location.reload();
+  }
 }
 
 const app = new App();
+
+//////////////////////////////////////////////////
+////// Additional features
+
+// 1. ability to edit a workout
+// 2. ability to delete a workout
+// 3. ability to delete all workouts
+// 4. ability to sort workouts by a certain field (e.g. distance)
+// 5. Re-build Running and Cycling objects coming from Local Storage
+// 6. More realistic error and confirmation message
+
+// [Only after asynchronous section]
+// 7. Geocode location from coordinates ("Run in Faro, Portugal")
+// 8. Display weather data for workout time and place
